@@ -475,10 +475,10 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
         Q over all actions, which concentrates on the actions the critic currently overvalues. Ranking actions correctly depends on the visual scene, so the encoder has to capture
         task-relevant object state.</li>
       <li><strong>Transfer the representation only.</strong> Before online RL, VRP keeps the encoder
-        <span class="math">E<sub>&theta;</sub></span> and the critic's first layer
+        <span class="math">E<sub>&theta;</sub></span> and, for EXPO, the critic's first layer
         <span class="math">f<sub>&phi;</sub></span>, which includes a small proprioception encoder and fuses
-        image, proprioception and action. The rest
-        of the agent is reinitialized, and the online algorithm (EXPO or PPO) is unchanged.</li>
+        image, proprioception and action. With PPO, whose critic does not take actions as input, only the
+        encoder is transferred. The rest of the agent is reinitialized, and the online algorithm is unchanged.</li>
     </ul>
   </div>
 </section>
