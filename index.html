@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Value Representation Pretraining</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="VRP: pretraining visual representations with TD learning and an action-contrastive loss for sample-efficient online RL." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* Layout: single centered column like a project page; wide figures at 1225px, prose at 862px.
+   Single light theme on purpose: the paper figures are rendered on white. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-alt: #f8fafa;
+  --surface: #ffffff;
+  --text: #111111;
+  --text-soft: #4a4a4a;
+  --text-mute: #858b8d;
+  --border: #e9eded;
+  --border-strong: #d5dbdc;
+  --accent: #111111;
+  --accent-hover: #2a2a2a;
+  --on-accent: #ffffff;
+  /* Brand color: the VRP teal used in the paper's figures. */
+  --brand: #0a6086;
+  --brand-soft: #e8f1f6;
+  --base-bar: #b9b8b3;
+  --track: #eef0f0;
+  --link: #0a6086;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --maxw: 1225px;
+  --maxw-narrow: 862px;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; background: var(--bg); }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px); z-index: 101; background: var(--bg);
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.container {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  padding-right: max(32px, env(safe-area-inset-right, 0px));
+}
+.container.narrow { max-width: var(--maxw-narrow); }
+
+/* ---------- Nav ---------- */
+.nav {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: saturate(180%) blur(8px);
+  -webkit-backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+.nav.scrolled { border-bottom-color: var(--border); }
+.nav-inner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding-block: 16px;
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  padding-right: max(32px, env(safe-area-inset-right, 0px));
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.nav-logo { font-weight: 600; letter-spacing: 0.02em; color: var(--brand); font-size: 15px; white-space: nowrap; }
+.nav-logo:hover { text-decoration: none; }
+.nav-links { display: flex; gap: 24px; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+.nav-links a { color: var(--text-soft); font-size: 14px; white-space: nowrap; }
+.nav-links a:hover { color: var(--text); text-decoration: none; }
+
+/* ---------- Hero ---------- */
+.hero { padding: 40px 0 0; text-align: center; }
+.title {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 auto 28px;
+  max-width: 1160px;
+  text-wrap: balance;
+}
+.title-row { display: block; }
+.title-brand { color: var(--brand); }
+.authors {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+  gap: 4px 18px; margin: 0 0 6px; font-size: 17.5px;
+}
+.author { white-space: nowrap; }
+.author sup {
+  color: var(--text-mute); font-size: 0.7em; line-height: 0;
+  position: relative; top: -0.45em; vertical-align: baseline;
+}
+.affiliations { font-size: 15.5px; color: var(--text-mute); margin-bottom: 4px; }
+.equal-contrib { font-size: 13px; color: var(--text-mute); margin-bottom: 22px; }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.link-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 18px;
+  background: var(--accent); color: var(--on-accent);
+  border-radius: 999px; border: 1px solid var(--accent);
+  font-weight: 600; font-size: 13.5px; letter-spacing: 0.01em;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.link-btn:hover { text-decoration: none; background: var(--accent-hover); border-color: var(--accent-hover); }
+.link-btn svg { width: 14px; height: 14px; }
+.link-btn.is-soon,
+.link-btn.is-soon:hover {
+  background: var(--surface); color: var(--text-mute);
+  border: 1px dashed var(--border-strong); cursor: default;
+}
+
+/* ---------- Sections ---------- */
+.section { padding-block: 48px; }
+.section-tight { padding-block: 32px 40px; }
+.section-alt { background: var(--bg-alt); }
+.section-head { text-align: center; margin-bottom: 26px; }
+.section-title {
+  font-size: clamp(22px, 2.6vw, 28px); font-weight: 600; letter-spacing: -0.01em;
+  margin: 0 0 8px; text-align: center; text-wrap: balance;
+}
+.section-sub { margin: 0 auto; color: var(--text-mute); font-size: 15px; max-width: 70ch; }
+
+/* ---------- Figures ---------- */
+.figure {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+.figure img { width: 100%; height: auto; display: block; }
+.figure figcaption, .caption {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-mute);
+}
+.figure figcaption strong, .caption strong { color: var(--text-soft); font-weight: 600; }
+.teaser { max-width: 1060px; margin: 0 auto; }
+.figure-mid { max-width: 860px; margin-inline: auto; }
+.teaser figcaption { text-align: center; }
+
+/* ---------- Highlights ---------- */
+.highlights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 1060px;
+  margin: 24px auto 0;
+}
+.highlight {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  background: var(--surface);
+  min-width: 0;
+}
+.highlight-num {
+  font-size: 26px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--brand); font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.highlight-num .from { color: var(--text-mute); font-weight: 500; }
+.highlight-label { margin-top: 4px; font-size: 13.5px; color: var(--text-soft); line-height: 1.5; }
+@media (max-width: 760px) { .highlights { grid-template-columns: 1fr; } }
+
+/* ---------- Prose ---------- */
+.lead { font-size: 17px; line-height: 1.8; color: var(--text-soft); margin: 0; }
+.lead + .lead { margin-top: 16px; }
+.lead strong { color: var(--text); font-weight: 600; }
+.lead em { font-style: italic; }
+.brand-name { color: var(--brand) !important; font-weight: 600; }
+
+.method-points { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 13px; }
+.method-points li {
+  position: relative; padding-left: 21px;
+  font-size: 17px; line-height: 1.7; color: var(--text-soft);
+}
+.method-points li::before {
+  content: ""; position: absolute; left: 2px; top: 0.62em;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--brand);
+}
+.method-points strong { color: var(--text); font-weight: 600; }
+
+.math {
+  font-family: 'Times New Roman', Times, serif;
+  font-style: italic;
+  font-size: 1.08em;
+  white-space: nowrap;
+}
+.math .up { font-style: normal; }
+.math sub { font-size: 0.7em; }
+
+.equation {
+  margin: 24px 0 0;
+  padding: 16px 20px;
+  border: 1px solid var(--brand);
+  background: var(--brand-soft);
+  border-radius: 999px;
+  text-align: center;
+  font-size: 18px;
+  color: var(--text);
+  overflow-x: auto;
+}
+.equation-note { margin: 10px 0 0; text-align: center; font-size: 13.5px; color: var(--text-mute); }
+
+/* ---------- Tasks strip ---------- */
+.tasks-scroll { overflow-x: auto; border-radius: var(--radius-md); }
+.tasks-scroll img { display: block; width: 100%; min-width: 760px; height: auto; border-radius: var(--radius-md); }
+
+/* ---------- Tabs ---------- */
+.task-tabs {
+  display: flex; flex-wrap: wrap;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.task-tab {
+  padding: 10px 16px;
+  border: none; background: transparent;
+  color: var(--text-mute);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px; font-weight: 500; font-family: inherit;
+  cursor: pointer;
+}
+.task-tab:hover { color: var(--text); }
+.task-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--brand); }
+.tab-panel .figure { padding: 18px; }
+
+/* ---------- PPO results ---------- */
+.eval-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 40px;
+}
+@media (max-width: 900px) { .eval-layout { grid-template-columns: 1fr; } }
+.eval-intro h3 { margin: 0 0 10px; font-size: 19px; font-weight: 600; letter-spacing: -0.005em; }
+.eval-intro p { margin: 0; color: var(--text-soft); font-size: 15.5px; line-height: 1.75; }
+.eval-intro p + p { margin-top: 12px; }
+.eval-results {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex; flex-direction: column;
+  min-width: 0;
+}
+.eval-results .task-tabs { margin-bottom: 18px; }
+.eval-results .task-tab { padding: 8px 12px; font-size: 13.5px; }
+.eval-results-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-mute); margin-bottom: 12px;
+}
+.eval-results-head .axis { text-transform: none; letter-spacing: 0.01em; font-weight: 500; font-size: 12px; }
+.eval-bar-row { margin-bottom: 12px; }
+.eval-bar-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  margin-bottom: 5px; font-size: 13.5px;
+}
+.eval-bar-name { color: var(--text-soft); font-weight: 500; }
+.eval-bar-val { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+.eval-bar-row.is-ours .eval-bar-name,
+.eval-bar-row.is-ours .eval-bar-val { color: var(--brand); font-weight: 600; }
+.eval-bar-track { position: relative; height: 8px; border-radius: 999px; background: var(--track); }
+.eval-bar-fill {
+  height: 100%; border-radius: 999px; background: var(--base-bar);
+  width: 0; transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.eval-bar-row.is-ours .eval-bar-fill { background: var(--brand); }
+.eval-bar-err {
+  position: absolute; top: -3px; height: 14px;
+  border-left: 1.5px solid var(--text-soft); border-right: 1.5px solid var(--text-soft);
+  opacity: 0.55; pointer-events: none;
+  transition: left 0.45s cubic-bezier(0.4, 0, 0.2, 1), width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.eval-note { margin: auto 0 0; padding-top: 10px; font-size: 12.5px; color: var(--text-mute); }
+
+/* ---------- Two-up figure grid ---------- */
+.grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+.finding h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; letter-spacing: -0.005em; }
+.finding p { margin: 0 0 14px; font-size: 15px; line-height: 1.7; color: var(--text-soft); }
+.finding .figure { padding: 16px; }
+.stack { display: grid; gap: 28px; }
+.probe-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 24px;
+  align-items: center;
+}
+@media (max-width: 760px) { .probe-row { grid-template-columns: 1fr; } }
+
+/* ---------- BibTeX ---------- */
+.code-wrap { position: relative; }
+.code {
+  margin: 0;
+  padding: 20px 22px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-soft);
+}
+.copy-btn {
+  position: absolute; top: 12px; right: 12px;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.copy-btn:hover { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* ---------- Footer ---------- */
+.footer { padding-block: 32px 48px; border-top: 1px solid var(--border); text-align: center; }
+.footer p { margin: 0; font-size: 13px; color: var(--text-mute); }
+
+@media (max-width: 640px) {
+  .container {
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .nav-inner {
+    padding-block: 12px; gap: 16px;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .nav-links { display: none; }
+  .figure { padding: 12px; }
+  .equation { border-radius: var(--radius-md); font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .eval-bar-fill, .eval-bar-err { transition: none; }
+}
+</style>
+</head>
+<body>
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-logo">VRP</a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#analysis">Analysis</a>
+      <a href="#bibtex">BibTeX</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===================== HERO ===================== -->
+<header class="hero" id="top">
+  <div class="container">
+    <h1 class="title">
+      <span class="title-row"><span class="title-brand">Vision Pretraining</span> for Efficient</span>
+      <span class="title-row">Online Reinforcement Learning</span>
+    </h1>
+    <div class="authors">
+      <span class="author">Kuo-Han Hung<sup>*</sup></span>
+      <span class="author">Perry Dong<sup>*</sup></span>
+      <span class="author">Dorsa Sadigh</span>
+      <span class="author">Chelsea Finn</span>
+    </div>
+    <div class="affiliations">Stanford University</div>
+    <div class="equal-contrib"><sup>*</sup>Equal contribution</div>
+    <div class="links">
+      <!-- TODO: replace # with the real paper / arXiv / code links -->
+      <a class="link-btn" href="#" aria-label="Paper">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Paper
+      </a>
+      <a class="link-btn" href="#" aria-label="arXiv">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+        arXiv
+      </a>
+      <span class="link-btn is-soon" aria-label="Code coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Code (coming soon)
+      </span>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== OVERVIEW ===================== -->
+<section id="overview" class="section section-tight">
+  <div class="container">
+    <figure class="figure teaser">
+      <img src="static/images/overview.png" alt="VRP overview: an offline critic and actor share a visual encoder trained with TD and action-contrastive losses; the encoder and first critic layer transfer to online RL, where VRP reaches higher success faster than IL or random initialization." />
+      <figcaption><strong>Overview of VRP.</strong> Left: VRP pretrains the representation with a TD objective and an action-contrastive objective, then transfers the visual encoder and the first critic layer to online RL. Right: success rate during online RL with EXPO initialized with VRP, imitation-learned, or random representations, averaged over 15 RLBench and 3 robomimic tasks.</figcaption>
+    </figure>
+
+    <div class="highlights">
+      <div class="highlight">
+        <div class="highlight-num">2.08&times;</div>
+        <div class="highlight-label">fewer environment steps than a randomly initialized encoder to reach the same success rate (EXPO)</div>
+      </div>
+      <div class="highlight">
+        <div class="highlight-num"><span class="from">81.0%</span> &rarr; 91.7%</div>
+        <div class="highlight-label">average success across 18 tasks with off-policy EXPO, vs. random init</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ABSTRACT ===================== -->
+<section id="abstract" class="section">
+  <div class="container narrow">
+    <div class="section-head">
+      <h2 class="section-title">Abstract</h2>
+      <p class="section-sub">Can we pretrain visual representations that are better suited to RL fine-tuning?</p>
+    </div>
+    <p class="lead">
+      Visual representations play a central role in the sample efficiency of vision-based online
+      reinforcement learning (RL), yet current methods mostly initialize the encoder from general-purpose
+      vision models or from imitation learning. We find that these pretrained representations often fail
+      to help online RL, performing similarly to or worse than a randomly initialized encoder.
+    </p>
+    <p class="lead">
+      We present <strong class="brand-name">Value Representation Pretraining (VRP)</strong>, a visual
+      representation pretraining method for online RL. VRP combines TD learning with an action-contrastive
+      loss to learn representations that capture task progress and how each action changes the expected
+      future return, information the critic needs during fine-tuning. With the off-policy algorithm EXPO, VRP
+      improves sample efficiency over a randomly initialized encoder by <strong>2.08&times;</strong> across
+      3 robomimic and 15 RLBench tasks, whereas encoders pretrained with non-RL methods like imitation
+      learning, time-contrastive learning, or DINOv2 provide little to no improvement. With the on-policy algorithm
+      PPO, VRP also achieves the highest average success rate on robomimic, raising it from
+      <strong>86.4% to 96.8%</strong> over random initialization.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== METHOD ===================== -->
+<section id="method" class="section section-alt">
+  <div class="container narrow">
+    <div class="section-head">
+      <h2 class="section-title">Our Method</h2>
+      <p class="section-sub">Offline value learning transfers through its representation, not its Q-values.</p>
+    </div>
+    <p class="lead">
+      Pretrained Q-values grow stale as the policy improves, but features that track task progress and
+      rank actions stay useful. <strong class="brand-name">VRP</strong> pretrains a soft actor-critic
+      offline on the same small set of successful demonstrations used for fine-tuning, and adds a loss
+      that forces the critic to look at the scene.
+    </p>
+    <ul class="method-points">
+      <li><strong>Value learning on demonstrations.</strong> An actor and critic share the visual encoder
+        <span class="math">E<sub>&theta;</sub></span>. The critic minimizes the TD loss, so the encoder learns
+        how far the task has progressed.</li>
+      <li><strong>Action-contrastive loss.</strong> On successful demos, proprioception alone predicts
+        progress, so a plain offline critic can ignore the image. VRP pushes up the Q-values of dataset
+        actions and samples from a separately trained imitation policy, and pushes down a soft maximum of
+        Q over all actions, which concentrates on the actions the critic currently overvalues. Ranking actions correctly depends on the visual scene, so the encoder has to capture
+        task-relevant object state.</li>
+      <li><strong>Transfer the representation only.</strong> Before online RL, VRP keeps the encoder
+        <span class="math">E<sub>&theta;</sub></span> and the critic's first layer
+        <span class="math">f<sub>&phi;</sub></span>, which includes a small proprioception encoder and fuses
+        image, proprioception and action. The rest
+        of the agent is reinitialized, and the online algorithm (EXPO or PPO) is unchanged.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== RESULTS ===================== -->
+<section id="results" class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">Results</h2>
+      <p class="section-sub">Every method uses the same online RL algorithm and differs only in how the encoder is initialized.</p>
+    </div>
+
+    <div class="task-tabs" role="tablist" aria-label="Benchmark">
+      <button class="task-tab" role="tab" id="tab-robomimic" aria-controls="panel-robomimic" aria-selected="true">robomimic</button>
+      <button class="task-tab" role="tab" id="tab-rlbench" aria-controls="panel-rlbench" aria-selected="false" tabindex="-1">RLBench</button>
+    </div>
+
+    <div class="tab-panel" id="panel-robomimic" role="tabpanel" aria-labelledby="tab-robomimic">
+      <figure class="figure">
+        <img src="static/images/robomimic.png" alt="Online RL learning curves on robomimic Square, Can and Lift with ViT-2M and ViT-20M encoders. VRP is above IL, offline EXPO, TCN, DINOv2 and random init on average." />
+        <figcaption><strong>Online RL with EXPO on robomimic (ViT-2M and ViT-20M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP outperforms all baselines, including offline EXPO (offline RL alone), and keeps its lead with the larger encoder.</figcaption>
+      </figure>
+    </div>
+    <div class="tab-panel" id="panel-rlbench" role="tabpanel" aria-labelledby="tab-rlbench" hidden>
+      <figure class="figure">
+        <img src="static/images/rlbench.png" alt="Online RL learning curves on 15 RLBench tasks plus their average. VRP leads most clearly on Push buttons, Open drawer and Insert USB in computer." />
+        <figcaption><strong>Online RL with EXPO on RLBench (ViT-2M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP raises the average final success rate from 79.1% (random init) to 90.5%. The largest gains come on tasks that need fine-grained perception of task-relevant objects, such as <em>insert USB in computer</em>.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ANALYSIS ===================== -->
+<section id="analysis" class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">What Does VRP Learn?</h2>
+      <p class="section-sub">Critics and representations on robomimic <em>square</em>, compared across pretraining objectives.</p>
+    </div>
+    <div class="stack">
+      <div class="finding">
+        <h3>The proprioception shortcut</h3>
+        <p>We swap either the proprioception <span class="math">q</span> or the image latent between demo states and measure how much Q follows the swap. SAC and SAC+IL critics follow <span class="math">q</span> almost entirely and barely respond to the image, and offline EXPO still relies mainly on <span class="math">q</span>. VRP's critic relies more on the image than on proprioception.</p>
+        <figure class="figure figure-mid">
+          <img src="static/images/proprio.png" alt="Bar charts. Swap proprioception: SAC 0.90, SAC+IL 0.94, Offline EXPO 0.62, VRP 0.35. Swap image: SAC 0.09, SAC+IL 0.06, Offline EXPO 0.33, VRP 0.53." />
+          <figcaption>1 means Q fully follows the swapped input; 0 means Q ignores it.</figcaption>
+        </figure>
+      </div>
+      <div class="finding">
+        <h3>Organized by task progress</h3>
+        <p>In the IL embedding, observations from different stages of the task are interleaved. DINOv2 clusters do not follow task stage, and TCN separates individual trajectories. VRP arranges observations along a smooth progression from early to late timesteps shared across episodes.</p>
+        <figure class="figure">
+          <img src="static/images/tsne.png" alt="t-SNE plots for IL, TCN, DINOv2 and VRP features, colored by normalized timestep; VRP shows a smooth light-to-dark gradient." />
+          <figcaption><strong>t-SNE of learned representations.</strong> Each dot is one observation, colored by its timestep <span class="math">t/T</span> within the episode; darker dots are later.</figcaption>
+        </figure>
+      </div>
+      <div class="finding">
+        <h3>Attends to the object and the gripper</h3>
+        <p>IL attends to the object but captures little about its relation to the gripper. DINOv2 spreads attention across every object in the scene. VRP concentrates on the object and its contact with the gripper.</p>
+        <figure class="figure">
+          <img src="static/images/gradcam.png" alt="Grad-CAM saliency maps on the agentview camera for IL, TCN, DINOv2 and VRP; VRP highlights the nut and the gripper." />
+          <figcaption><strong>Grad-CAM</strong> on the agentview camera, computed for each encoder's own target (IL: predicted action; TCN: goal distance; DINOv2: object pose probe; VRP: <span class="math">Q(s, a)</span>).</figcaption>
+        </figure>
+      </div>
+      <div class="finding probe-row">
+        <div>
+          <h3>Encodes the object&ndash;gripper relation</h3>
+          <p>A linear probe on VRP features predicts the object's yaw relative to the gripper with <span class="math">R</span><sup>2</sup>&nbsp;=&nbsp;0.81. IL reaches only 0.50, barely above a randomly initialized encoder at 0.45. This object-centric information is what the critic needs to judge which actions lead to success.</p>
+        </div>
+        <figure class="figure">
+          <img src="static/images/probe.png" alt="Bar chart of relative yaw probe R squared: IL 0.50, TCN 0.60, DINOv2 0.60, VRP 0.81; random init about 0.45." />
+          <figcaption>Linear-probe <span class="math">R</span><sup>2</sup> on held-out demonstrations. Dashed line: random init.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== BIBTEX ===================== -->
+<section id="bibtex" class="section">
+  <div class="container narrow">
+    <h2 class="section-title">BibTeX</h2>
+    <div class="code-wrap">
+      <button class="copy-btn" id="copy-bibtex" type="button" aria-label="Copy BibTeX">Copy</button>
+      <!-- TODO: add the BibTeX entry -->
+      <pre class="code"><code id="bibtex-code"></code></pre>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <p>Value Representation Pretraining (VRP) project page.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Nav border on scroll
+  var nav = document.getElementById('nav');
+  function onScroll() { nav.classList.toggle('scrolled', window.scrollY > 8); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Generic tab behaviour
+  function wireTabs(list, onSelect) {
+    var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+    function select(i, focus) {
+      tabs.forEach(function (t, j) {
+        var on = i === j;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+      });
+      if (focus) tabs[i].focus();
+      onSelect(i);
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener('click', function () { select(i, false); });
+      t.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); select((i + 1) % tabs.length, true); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); select((i - 1 + tabs.length) % tabs.length, true); }
+      });
+    });
+    return select;
+  }
+
+  // Benchmark figure tabs
+  var benchList = document.querySelector('#results > .container > .task-tabs');
+  var panels = ['panel-robomimic', 'panel-rlbench'].map(function (id) { return document.getElementById(id); });
+  wireTabs(benchList, function (i) { panels.forEach(function (p, j) { p.hidden = i !== j; }); });
+
+  // Copy BibTeX
+  var copyBtn = document.getElementById('copy-bibtex');
+  var code = document.getElementById('bibtex-code');
+  copyBtn.addEventListener('click', function () {
+    function done(msg) { copyBtn.textContent = msg; setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500); }
+    function fallback() {
+      var r = document.createRange(); r.selectNodeContents(code);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      done('Selected');
+    }
+    try {
+      navigator.clipboard.writeText(code.textContent).then(function () { done('Copied'); }, fallback);
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
