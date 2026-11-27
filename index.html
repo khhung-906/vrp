@@ -235,25 +235,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
 .tasks-scroll { overflow-x: auto; border-radius: var(--radius-md); }
 .tasks-scroll img { display: block; width: 100%; min-width: 760px; height: auto; border-radius: var(--radius-md); }
 
-/* ---------- Tabs ---------- */
-.task-tabs {
-  display: flex; flex-wrap: wrap;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--border);
-}
-.task-tab {
-  padding: 10px 16px;
-  border: none; background: transparent;
-  color: var(--text-mute);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  font-size: 14px; font-weight: 500; font-family: inherit;
-  cursor: pointer;
-}
-.task-tab:hover { color: var(--text); }
-.task-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--brand); }
-.tab-panel .figure { padding: 18px; }
-
 /* ---------- PPO results ---------- */
 .eval-layout {
   display: grid;
@@ -510,22 +491,21 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
       <p class="section-sub">Every method uses the same online RL algorithm and differs only in how the encoder is initialized.</p>
     </div>
 
-    <div class="task-tabs" role="tablist" aria-label="Benchmark">
-      <button class="task-tab" role="tab" id="tab-robomimic" aria-controls="panel-robomimic" aria-selected="true">robomimic</button>
-      <button class="task-tab" role="tab" id="tab-rlbench" aria-controls="panel-rlbench" aria-selected="false" tabindex="-1">RLBench</button>
-    </div>
-
-    <div class="tab-panel" id="panel-robomimic" role="tabpanel" aria-labelledby="tab-robomimic">
-      <figure class="figure">
-        <img src="static/images/robomimic.png" alt="Online RL learning curves on robomimic Square, Can and Lift with ViT-2M and ViT-20M encoders. VRP is above IL, offline EXPO, TCN, DINOv2 and random init on average." />
-        <figcaption><strong>Online RL with EXPO on robomimic (ViT-2M and ViT-20M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP outperforms all baselines, including offline EXPO (offline RL alone), and keeps its lead with the larger encoder.</figcaption>
-      </figure>
-    </div>
-    <div class="tab-panel" id="panel-rlbench" role="tabpanel" aria-labelledby="tab-rlbench" hidden>
-      <figure class="figure">
-        <img src="static/images/rlbench.png" alt="Online RL learning curves on 15 RLBench tasks plus their average. VRP leads most clearly on Push buttons, Open drawer and Insert USB in computer." />
-        <figcaption><strong>Online RL with EXPO on RLBench (ViT-2M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP raises the average final success rate from 79.1% (random init) to 90.5%. The largest gains come on tasks that need fine-grained perception of task-relevant objects, such as <em>insert USB in computer</em>.</figcaption>
-      </figure>
+    <div class="stack">
+      <div class="finding">
+        <h3>robomimic</h3>
+        <figure class="figure">
+          <img src="static/images/robomimic.png" alt="Online RL learning curves on robomimic Square, Can and Lift with ViT-2M and ViT-20M encoders. VRP is above IL, offline EXPO, TCN, DINOv2 and random init on average." />
+          <figcaption><strong>Online RL with EXPO on robomimic (ViT-2M and ViT-20M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP outperforms all baselines, including offline EXPO (offline RL alone), and keeps its lead with the larger encoder.</figcaption>
+        </figure>
+      </div>
+      <div class="finding">
+        <h3>RLBench</h3>
+        <figure class="figure">
+          <img src="static/images/rlbench.png" alt="Online RL learning curves on 15 RLBench tasks plus their average. VRP leads most clearly on Push buttons, Open drawer and Insert USB in computer." />
+          <figcaption><strong>Online RL with EXPO on RLBench (ViT-2M).</strong> Mean over 3 seeds; shaded regions show standard error. VRP raises the average final success rate from 79.1% (random init) to 90.5%. The largest gains come on tasks that need fine-grained perception of task-relevant objects, such as <em>insert USB in computer</em>.</figcaption>
+        </figure>
+      </div>
     </div>
   </div>
 </section>
@@ -601,33 +581,6 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline
   function onScroll() { nav.classList.toggle('scrolled', window.scrollY > 8); }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
-
-  // Generic tab behaviour
-  function wireTabs(list, onSelect) {
-    var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
-    function select(i, focus) {
-      tabs.forEach(function (t, j) {
-        var on = i === j;
-        t.setAttribute('aria-selected', on ? 'true' : 'false');
-        t.tabIndex = on ? 0 : -1;
-      });
-      if (focus) tabs[i].focus();
-      onSelect(i);
-    }
-    tabs.forEach(function (t, i) {
-      t.addEventListener('click', function () { select(i, false); });
-      t.addEventListener('keydown', function (e) {
-        if (e.key === 'ArrowRight') { e.preventDefault(); select((i + 1) % tabs.length, true); }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); select((i - 1 + tabs.length) % tabs.length, true); }
-      });
-    });
-    return select;
-  }
-
-  // Benchmark figure tabs
-  var benchList = document.querySelector('#results > .container > .task-tabs');
-  var panels = ['panel-robomimic', 'panel-rlbench'].map(function (id) { return document.getElementById(id); });
-  wireTabs(benchList, function (i) { panels.forEach(function (p, j) { p.hidden = i !== j; }); });
 
   // Copy BibTeX
   var copyBtn = document.getElementById('copy-bibtex');
